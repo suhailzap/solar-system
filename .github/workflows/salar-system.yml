@@ -18,7 +18,7 @@ jobs:
     name: Unit Testing
     strategy:
       matrix:
-        nodejs_version: [18, 19, 20]
+        nodejs_version: [18, 20]
         operating_system: [ubuntu-latest]
         exclude:
           - nodejs_version: 18
@@ -140,5 +140,9 @@ jobs:
         echo Testing Image URL using wget
         wget -q -O - 127.0.0.1:3000/live | grep live
 
-
-
+    - name: Docker Push
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
