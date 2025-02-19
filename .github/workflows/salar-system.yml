@@ -32,7 +32,14 @@ jobs:
     - name: Setup NodeJS Version - ${{ matrix.nodejs_version }}
       uses: actions/setup-node@v3
       with:
-        node-version: ${{ matrix.nodejs_version }}
+        node-version-file: ${{ matrix.nodejs_version }}
+
+    - name: cache NPM dependencies
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+  
 
     - name: Install Dependencies
       run: npm install
@@ -66,6 +73,12 @@ jobs:
       with:
         node-version: 18
 
+    - name: cache NPM dependencies
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+    
     - name: Install Dependencies
       run: npm install
 
@@ -79,6 +92,7 @@ jobs:
       run: mv coverage-results.xml coverage-results/
 
     - name: Archive Coverage Result
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: Code-Coverage-Result-${{ github.run_id }}
