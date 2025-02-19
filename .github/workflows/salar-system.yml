@@ -44,3 +44,4 @@ jobs:
       with:
         name: Mocha-Test-Result-${{ github.run_id }}-${{ github.job }}-${{ github.run_attempt }}
         path: test-results.xml
+        if-no-files-found: ignore
