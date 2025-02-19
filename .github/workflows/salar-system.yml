@@ -83,3 +83,4 @@ jobs:
       with:
         name: Code-Coverage-Result-${{ github.run_id }}
         path: coverage-results/
+        retention-days: 1
