@@ -24,6 +24,7 @@ jobs:
               - nodejs_version: 18
                 operating_system: macos-latest
     runs-on: ${{ matrix.operating_system }}
+    
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -36,12 +37,18 @@ jobs:
     - name: Install Dependencies
       run: npm install
 
-    - name: Unit Testing
-      run: npm test
-          
+    - name: Run Unit Tests
+      run: npm test | tee test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml
+
+    - name: Ensure Test Results Directory Exists
+      run: mkdir -p test-results
+
+    - name: Move Test Results
+      run: mv test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml test-results/
+
     - name: Archive Test Result
       uses: actions/upload-artifact@v4
       with:
-        name: Mocha-Test-Result-${{ github.run_id }}-${{ github.job }}-${{ github.run_attempt }}
-        path: test-results.xml
+        name: Mocha-Test-Result-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}-${{ github.run_id }}
+        path: test-results/
         if-no-files-found: ignore
