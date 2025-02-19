@@ -8,23 +8,23 @@ on:
       - 'feature/*'
 
 env:
-    MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
-    MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
-    MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
-    NODE_OPTIONS: --no-deprecation
-    
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+  NODE_OPTIONS: --no-deprecation
+
 jobs:
   unit-testing:
     name: Unit Testing
     strategy:
       matrix:
-          nodejs_version: [18, 19, 20]
-          operating_system: [ubuntu-latest, macos-latest]
-          exclude:
-              - nodejs_version: 18
-                operating_system: macos-latest
+        nodejs_version: [18, 19, 20]
+        operating_system: [ubuntu-latest, macos-latest]
+        exclude:
+          - nodejs_version: 18
+            operating_system: macos-latest
     runs-on: ${{ matrix.operating_system }}
-    
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -34,12 +34,13 @@ jobs:
       with:
         node-version: ${{ matrix.nodejs_version }}
 
-    - name: cache NPM dependencies
+    - name: Cache Node Modules
       uses: actions/cache@v3
       with:
         path: node_modules
-        key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
-  
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
 
     - name: Install Dependencies
       run: npm install
@@ -53,7 +54,7 @@ jobs:
     - name: Move Test Results
       run: mv test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml test-results/
 
-    - name: Archive Test Result
+    - name: Archive Test Results
       uses: actions/upload-artifact@v4
       with:
         name: Mocha-Test-Result-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}-${{ github.run_id }}
@@ -63,6 +64,7 @@ jobs:
   code-coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    needs: unit-testing  # Ensure this job runs after unit-testing
 
     steps:
     - name: Checkout Repository
@@ -72,6 +74,14 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 18
+
+    - name: Cache Node Modules
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
 
     - name: Install Dependencies
       run: npm install
@@ -85,7 +95,7 @@ jobs:
     - name: Move Coverage Results
       run: mv coverage-results.xml coverage-results/
 
-    - name: Archive Coverage Result
+    - name: Archive Coverage Results
       uses: actions/upload-artifact@v4
       with:
         name: Code-Coverage-Result-${{ github.run_id }}
