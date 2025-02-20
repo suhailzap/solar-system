@@ -196,7 +196,7 @@ jobs:
       uses: azure/k8s-set-context@v3
       with:
         method: kubeconfig
-        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+        kubeconfig: '${{ secrets.KUBECONFIG }}'
         cluster-type: generic
 
     - name: Fetch K8s Cluster Details
@@ -206,7 +206,7 @@ jobs:
         kubectl get nodes
 
 
-        
+
     
 
 
