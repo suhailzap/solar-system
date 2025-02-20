@@ -46,4 +46,11 @@ If the installation was successful, you should be able to run the following comm
 
 ## Access Application on Browser
     http://localhost:3000/
+## Understanding The Deployment
+
+![image](https://github.com/user-attachments/assets/4aa6a251-a18b-4d59-9f37-a3c6884ff2a9)
+
+![image](https://github.com/user-attachments/assets/ff9e0cfd-c371-4593-9133-4c9c44b418bf)
+
+
 
