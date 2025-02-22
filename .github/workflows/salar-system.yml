@@ -191,6 +191,9 @@ jobs:
       with:
         version: 'v1.31.5'
 
+    - name: Create .kube directory
+      run: mkdir -p $HOME/.kube
+
     - name: Set Kubeconfig
       run: echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
 
@@ -200,7 +203,6 @@ jobs:
         kubectl get nodes
       env:
         KUBECONFIG: ${{ secrets.KUBECONFIG }}
-        
 
     - name: Fetch K8s Cluster Details
       run: |
@@ -208,6 +210,7 @@ jobs:
         echo --------------------------------------
         kubectl get nodes
 
+        
   # dev-integration-testing:
   #   if: contains(github.ref, 'feature/')
   #   name: Dev Integration Testing
