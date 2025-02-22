@@ -179,9 +179,6 @@ jobs:
             ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
 
-
-
-            
   dev-deploy:
     needs: docker
     runs-on: ubuntu-latest
@@ -198,26 +195,19 @@ jobs:
         run: mkdir -p $HOME/.kube
 
       - name: Set Kubeconfig
-        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
-
-      - name: Deploy to cluster
-        run: |
-          kubectl config view
-          kubectl get nodes
-        env:
-          KUBECONFIG: $HOME/.kube/config
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          cluster-type: 'generic'
 
       - name: Fetch K8s Cluster Details
         run: |
-          kubectl version 
+          kubectl version
           echo --------------------------------------
           kubectl get nodes
-        env:
-          KUBECONFIG: $HOME/.kube/config 
 
-        
+          
   # dev-integration-testing:
   #   if: contains(github.ref, 'feature/')
   #   name: Dev Integration Testing
@@ -306,7 +296,9 @@ jobs:
   #     id: set-ingress-host-address
   #     run: |
   #       echo "APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system-ingress -o jsonpath='{.spec.rules[0].host}')" >> $GITHUB_OUTPUT
-     
+   
+  
+  
   # prod-integration-testing:
   #   name: Prod Integration Testing
   #   if: github.ref == 'refs/heads/main'
