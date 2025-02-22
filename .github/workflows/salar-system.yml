@@ -191,15 +191,11 @@ jobs:
       with:
         version: 'v1.31.5'
 
-    - name: Set Kubeconfig file
-      uses: azure/k8s-set-context@v3
-      with:
-        method: kubeconfig
-        kubeconfig: "${{ secrets.KUBECONFIG }}"
+    - name: Set Kubeconfig
+      run: echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
 
-    - name: Verify kubeconfig
+    - name: Deploy to cluster
       run: |
-        echo $KUBECONFIG
         kubectl config view
         kubectl get nodes
       env:
