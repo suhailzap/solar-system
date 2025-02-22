@@ -179,36 +179,43 @@ jobs:
             ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
 
+
+
+            
   dev-deploy:
     needs: docker
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Install kubectl CLI
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.31.5'
+      - name: Install kubectl CLI
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.31.5'
 
-    - name: Create .kube directory
-      run: mkdir -p $HOME/.kube
+      - name: Create .kube directory
+        run: mkdir -p $HOME/.kube
 
-    - name: Set Kubeconfig
-      run: echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG_CONTENT }}" | base64 -d > $HOME/.kube/config
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_CONTENT }}
 
-    - name: Deploy to cluster
-      run: |
-        kubectl config view
-        kubectl get nodes
-      env:
-        KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      - name: Deploy to cluster
+        run: |
+          kubectl config view
+          kubectl get nodes
+        env:
+          KUBECONFIG: $HOME/.kube/config
 
-    - name: Fetch K8s Cluster Details
-      run: |
-        kubectl version 
-        echo --------------------------------------
-        kubectl get nodes
+      - name: Fetch K8s Cluster Details
+        run: |
+          kubectl version 
+          echo --------------------------------------
+          kubectl get nodes
+        env:
+          KUBECONFIG: $HOME/.kube/config 
 
         
   # dev-integration-testing:
