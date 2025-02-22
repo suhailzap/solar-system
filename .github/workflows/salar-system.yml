@@ -191,12 +191,19 @@ jobs:
       with:
         version: 'v1.31.5'
 
+    - name: Set Kubeconfig file
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBECONFIG }}
+        cluster-type: generic
+
     - name: Fetch K8s Cluster Details
       run: |
         kubectl version 
         echo --------------------------------------
         kubectl get nodes
-        
+
   # dev-integration-testing:
   #   if: contains(github.ref, 'feature/')
   #   name: Dev Integration Testing
