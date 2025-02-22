@@ -196,6 +196,14 @@ jobs:
       with:
         method: kubeconfig
         kubeconfig: "${{ secrets.KUBECONFIG }}"
+
+    - name: Verify kubeconfig
+      run: |
+        echo $KUBECONFIG
+        kubectl config view
+        kubectl get nodes
+      env:
+        KUBECONFIG: ${{ secrets.KUBECONFIG }}
         
 
     - name: Fetch K8s Cluster Details
