@@ -191,14 +191,11 @@ jobs:
         with:
           version: 'v1.31.5'
 
-      - name: Create .kube directory
-        run: mkdir -p $HOME/.kube
-
       - name: Set Kubeconfig
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
           cluster-type: 'generic'
 
       - name: Fetch K8s Cluster Details
