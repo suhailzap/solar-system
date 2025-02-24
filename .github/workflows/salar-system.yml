@@ -248,6 +248,7 @@ jobs:
           echo "::set-output name=APP_INGRESS_HOST::$APP_INGRESS_HOST"
       
   dev-integration-testing:
+    if: contains(github.ref, 'feature/')
     name: Dev Integration Testing
     needs: dev-deploy
     runs-on: ubuntu-latest
