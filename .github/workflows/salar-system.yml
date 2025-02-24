@@ -189,14 +189,12 @@ jobs:
       - name: Create .kube directory (if not exists)
         run: mkdir -p $HOME/.kube
 
-      - name: Set Kubeconfig
-        run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml  # Path to K3s kubeconfig
-          echo "Kubeconfig set to /etc/rancher/k3s/k3s.yaml"
+      - name: Set Kubeconfig from Secret
+        run: echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
 
       - name: Fetch K8s Cluster Details
         run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          export KUBECONFIG=$HOME/.kube/config
           kubectl version
           echo "--------------------------------------"
           kubectl get nodes
