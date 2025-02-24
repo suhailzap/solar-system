@@ -201,7 +201,9 @@ jobs:
 
       - name: Set Ingress IP as Environment Variable
         run: |
-          export INGRESS_IP=$(kubectl get service traefik -n kube-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}') >> $GITHUB_ENV
+          export INGRESS_IP=$(kubectl get service traefik -n kube-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo $INGRESS_IP
+          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
 
       - name: Replace Tokens in Manifest Files
         uses: cschleiden/replace-tokens@v1
