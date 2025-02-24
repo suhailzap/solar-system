@@ -250,12 +250,8 @@ jobs:
   dev-integration-testing:
     name: Dev Integration Testing
     needs: dev-deploy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, prod] 
     steps:
-     
-    - name: Install jq
-      run: sudo apt-get install jq
-
     - name: Test URL Output using CURL and JQ
       env:
         URL: ${{ needs.dev-deploy.outputs.APP_INGRESS_URL }}
