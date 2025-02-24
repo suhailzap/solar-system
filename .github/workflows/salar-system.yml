@@ -252,6 +252,10 @@ jobs:
     needs: dev-deploy
     runs-on: ubuntu-latest
     steps:
+     
+    - name: Install jq
+      run: sudo apt-get install jq
+
     - name: Test URL Output using CURL and JQ
       env:
         URL: ${{ needs.dev-deploy.outputs.APP_INGRESS_URL }}
