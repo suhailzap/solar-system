@@ -181,7 +181,7 @@ jobs:
 
   dev-deploy:
     needs: docker
-    runs-on: grafana # Use your self-hosted runner instead of ubuntu-latest
+    runs-on: [self-hosted, Linux] # Use your self-hosted runner instead of ubuntu-latest
 
     steps:
       - name: Checkout Repository
