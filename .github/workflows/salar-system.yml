@@ -181,6 +181,9 @@ jobs:
 
   dev-deploy:
     needs: docker
+    environment:
+      name: development
+      url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     outputs:
       APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     runs-on: [self-hosted, linux, prod] # Use your self-hosted runner instead of ubuntu-latest if using k3s
