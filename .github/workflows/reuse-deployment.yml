@@ -24,7 +24,9 @@ jobs:
       - name: Fetch K8s Cluster Details
         run: |
           export KUBECONFIG=$HOME/.kube/config
+          kubectl cluster-info
           kubectl version
+          kubectl get nodes
           echo "--------------------------------------"
           kubectl get nodes
 
@@ -75,5 +77,4 @@ jobs:
           echo "::set-output name=APP_INGRESS_HOST::$APP_INGRESS_HOST"
  
 
-          
           
