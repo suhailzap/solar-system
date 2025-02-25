@@ -74,4 +74,6 @@ jobs:
           echo "APP_INGRESS_HOST=$APP_INGRESS_HOST" >> $GITHUB_ENV
           echo "::set-output name=APP_INGRESS_HOST::$APP_INGRESS_HOST"
  
-    
+
+          
+          
