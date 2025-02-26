@@ -2,6 +2,20 @@ name: Deployment - Reusable Workflow
 
 on:
   workflow_call:
+    inputs:
+      MONGO_URI:
+        required: true
+        type: string
+      k8s-manifests-directory:
+        description: provide the directory where k8s manifests are stored
+        default: kubernetes/
+        required: true
+        type: string
+      environment:
+        description: provide the Deployment Environment name
+        default: development
+        required: true
+        type: string
     secrets:
       KUBE_CONFIG:
         required: true
@@ -11,7 +25,7 @@ on:
 jobs:
   reuse-deploy:
     environment:
-      name: development
+      name: ${{ inputs.environment }}
       url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     outputs:
       APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
@@ -47,7 +61,7 @@ jobs:
         with:
           tokenPrefix: '_{_'
           tokenSuffix: '_}_'
-          files: '["kubernetes/development/*.yaml"]'
+          files: '["${{ inputs.k8s-manifests-directory }}*.yaml"]'
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
           REPLICAS: ${{ vars.REPLICAS }}
@@ -56,12 +70,12 @@ jobs:
 
       - name: Check files
         run: |
-          cat kubernetes/development/*.yaml
+          cat ${{ inputs.k8s-manifests-directory }}*.yaml
 
       - name: Create MongoDB Secret
         run: |
           kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-            --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
+            --from-literal=MONGO_URI=${{ inputs.MONGO_URI }} \
             --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
             --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
             --save-config \
@@ -70,7 +84,7 @@ jobs:
 
       - name: Deploy to DEV Environment
         run: |
-          kubectl apply -f kubernetes/development
+          kubectl apply -f ${{ inputs.k8s-manifests-directory }}
 
       - name: Set App Ingress Host URL
         id: set-ingress-host-address

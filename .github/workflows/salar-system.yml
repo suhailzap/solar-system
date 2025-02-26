@@ -186,6 +186,10 @@ jobs:
     secrets:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
       MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+    with:
+      MONGO_URI: ${{ vars.MONGO_URI }}
+      environment: development
+      k8s-manifests-directory: kubernetes/development
      
   dev-integration-testing:
     if: contains(github.ref, 'feature/')
@@ -208,6 +212,11 @@ jobs:
     secrets:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
       MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+    with:
+      MONGO_URI: ${{ vars.MONGO_URI }}
+      environment: production
+      k8s-manifests-directory: kubernetes/production
+      
       
   prod-integration-testing:
     if: github.ref == 'refs/heads/main'
