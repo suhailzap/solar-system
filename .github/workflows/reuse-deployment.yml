@@ -2,6 +2,11 @@ name: Deployment - Reusable Workflow
 
 on:
   workflow_call:
+    secrets:
+      KUBE_CONFIG:
+        required: true
+      MONGO_PASSWORD:
+        required: true
 
 jobs:
   reuse-deploy:
