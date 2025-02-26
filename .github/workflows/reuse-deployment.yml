@@ -10,7 +10,7 @@ jobs:
       url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     outputs:
       APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
-    runs-on: [self-hosted, linux, prod] # Use your self-hosted runner instead of ubuntu-latest if using k3s
+    runs-on: [self-hosted, linux, prod] 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -19,16 +19,14 @@ jobs:
         run: mkdir -p $HOME/.kube
 
       - name: Set Kubeconfig from Secret
-        run: | 
-            echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
-            echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+        run: echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
 
       - name: Fetch K8s Cluster Details
         run: |
           export KUBECONFIG=$HOME/.kube/config
           kubectl version
-          kubectl get nodes
           echo "--------------------------------------"
+          kubectl get nodes
 
       - name: Create development namespace if not exists
         run: kubectl create namespace ${{ vars.NAMESPACE }} || true
@@ -75,6 +73,4 @@ jobs:
           APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')
           echo "APP_INGRESS_HOST=$APP_INGRESS_HOST" >> $GITHUB_ENV
           echo "::set-output name=APP_INGRESS_HOST::$APP_INGRESS_HOST"
- 
-
           
