@@ -84,7 +84,7 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
-      - name: Deploy to DEV Environment
+      - name: Deploy to the Environment
         run: |
           kubectl apply -f ${{ inputs.k8s-manifests-directory }}
 
