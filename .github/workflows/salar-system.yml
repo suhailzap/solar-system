@@ -1,5 +1,6 @@
 name: Solar System Workflow
-on: 
+
+on:
   workflow_dispatch:
   push:
     branches:
@@ -15,166 +16,103 @@ env:
 jobs:
   unit-testing:
     name: Unit Testing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nodejs_version: [18, 20]
     services:
       mongo-db:
         image: siddharth67/mongo-db:non-prod
         ports:
           - 27017:27017
-        options: --name mongo
     env:
-        MONGO_URI: 'mongodb://localhost:27017/superData'
-        MONGO_USERNAME: non-prod-user
-        MONGO_PASSWORD: non-prod-password
-        NODE_OPTIONS: --no-deprecation
-
-    strategy:
-      matrix:
-        nodejs_version: [18, 20]
-        operating_system: [ubuntu-latest]
-        exclude:
-          - nodejs_version: 18
-            operating_system: macos-latest
-    runs-on: ${{ matrix.operating_system }}
+      MONGO_URI: 'mongodb://localhost:27017/superData'
+      MONGO_USERNAME: non-prod-user
+      MONGO_PASSWORD: non-prod-password
+      NODE_OPTIONS: --no-deprecation
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup NodeJS Version - ${{ matrix.nodejs_version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.nodejs_version }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.nodejs_version }}
 
-    - name: Cache Node Modules
-      uses: actions/cache@v3
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - name: Install Dependencies
+        run: npm ci
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Run Unit Tests
+        run: npm test | tee test-results-${{ matrix.nodejs_version }}.xml
 
-    - name: Run Unit Tests
-      run: npm test | tee test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml
-
-    - name: Ensure Test Results Directory Exists
-      run: mkdir -p test-results
-
-    - name: Move Test Results
-      run: mv test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml test-results/
-
-    - name: Archive Test Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: Mocha-Test-Result-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}-${{ github.run_id }}
-        path: test-results/
-        if-no-files-found: ignore
+      - name: Archive Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mocha-Test-Results-${{ matrix.nodejs_version }}
+          path: test-results-${{ matrix.nodejs_version }}.xml
+          if-no-files-found: ignore
 
   code-coverage:
     name: Code Coverage
+    runs-on: ubuntu-latest
     container:
       image: node:18
     services:
       mongo-db:
         image: siddharth67/mongo-db:non-prod
-        options: --name mongo
     env:
-        MONGO_URI: 'mongodb://mongo:27017/superData'
-        MONGO_USERNAME: non-prod-user
-        MONGO_PASSWORD: non-prod-password
-        NODE_OPTIONS: --no-deprecation
-    runs-on: ubuntu-latest
+      MONGO_URI: 'mongodb://mongo:27017/superData'
+      MONGO_USERNAME: non-prod-user
+      MONGO_PASSWORD: non-prod-password
+      NODE_OPTIONS: --no-deprecation
+
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    # - name: Setup NodeJS - 18
-    #   uses: actions/setup-node@v3
-    #   with:
-    #     node-version: 18
+      - name: Install Dependencies
+        run: npm ci
 
-    - name: Cache Node Modules
-      uses: actions/cache@v3
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - name: Run Code Coverage
+        run: npm run coverage | tee coverage-results.xml
 
-    - name: Install Dependencies
-      run: npm install
-
-    - name: Run Code Coverage
-      run: npm run coverage | tee coverage-results.xml
-
-    - name: Ensure Coverage Results Directory Exists
-      run: mkdir -p coverage-results
-
-    - name: Move Coverage Results
-      run: mv coverage-results.xml coverage-results/
-
-    - name: Archive Coverage Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: Code-Coverage-Result-${{ github.run_id }}
-        path: coverage-results/
-        retention-days: 1
+      - name: Archive Coverage Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Code-Coverage-Results
+          path: coverage-results.xml
+          retention-days: 1
 
   docker:
     name: Containerize Application
     needs: [unit-testing, code-coverage]
+    runs-on: ubuntu-latest
     permissions:
       packages: write
-    runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Dockerhub Login
-      uses: docker/login-action@v2.2.0
-      with:
-        username: ${{ vars.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Dockerhub Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-    - name: GHCR Login
-      uses: docker/login-action@v2.2.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: GHCR Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-
-    - name: Docker build for testing
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: false
-        tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-
-    - name: Docker Image Testing
-      run: |
-        docker images
-        docker run --name solar-system-app -d \
-          -p 3000:3000 \
-          -e MONGO_URI=$MONGO_URI \
-          -e MONGO_USERNAME=$MONGO_USERNAME \
-          -e MONGO_PASSWORD=$MONGO_PASSWORD \
-          ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-
-        export IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
-        echo $IP
-
-        echo Testing Image URL using wget
-        wget -q -O - 127.0.0.1:3000/live | grep live
-
-    - name: Container Registry Push
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: true
-        tags: | 
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
 
@@ -182,20 +120,18 @@ jobs:
     if: contains(github.ref, 'feature/')
     needs: docker
     uses: ./.github/workflows/reuse-deployment.yml
-     
+
   dev-integration-testing:
     if: contains(github.ref, 'feature/')
-    name: Dev Integration Testing
     needs: dev-deploy
-    runs-on: [self-hosted, linux, prod] 
+    runs-on: [self-hosted, linux, prod]
     steps:
-    - name: Test URL Output using CURL and JQ
-      env:
-        URL: ${{ needs.dev-deploy.outputs.APP_INGRESS_URL }}
-      run: |
-        echo $URL
-        echo "___________________________"
-        curl https://$URL/live -s -k | jq -r .status | grep -i live
+      - name: Test Application Endpoint
+        env:
+          URL: ${{ needs.dev-deploy.outputs.APP_INGRESS_URL }}
+        run: |
+          echo "Testing API Endpoint: $URL"
+          curl -s -k https://$URL/live | jq -r .status | grep -i live
 
   prod-deploy:
     if: github.ref == 'refs/heads/main'
@@ -204,18 +140,12 @@ jobs:
 
   prod-integration-testing:
     if: github.ref == 'refs/heads/main'
-    name: Prod Integration Testing
     needs: prod-deploy
-    runs-on: [self-hosted, linux, prod] 
+    runs-on: [self-hosted, linux, prod]
     steps:
-    - name: Test URL Output using CURL and JQ
-      env:
-        URL: ${{ needs.prod-deploy.outputs.APP_INGRESS_URL }}
-      run: |
-        echo $URL
-        echo "___________________________"
-        curl https://$URL/live -s -k | jq -r .status | grep -i live
-
-
-
-        
+      - name: Test Production Endpoint
+        env:
+          URL: ${{ needs.prod-deploy.outputs.APP_INGRESS_URL }}
+        run: |
+          echo "Testing API Endpoint: $URL"
+          curl -s -k https://$URL/live | jq -r .status | grep -i live
