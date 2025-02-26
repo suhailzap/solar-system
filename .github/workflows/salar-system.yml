@@ -8,10 +8,9 @@ on:
       - 'feature/*'
 
 env:
-  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
-  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
-  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
-  NODE_OPTIONS: --no-deprecation
+    MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+    MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+    MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }} 
 
 jobs:
   unit-testing:
@@ -27,7 +26,6 @@ jobs:
         MONGO_USERNAME: non-prod-user
         MONGO_PASSWORD: non-prod-password
         NODE_OPTIONS: --no-deprecation
-
     strategy:
       matrix:
         nodejs_version: [18, 20]
@@ -36,7 +34,6 @@ jobs:
           - nodejs_version: 18
             operating_system: macos-latest
     runs-on: ${{ matrix.operating_system }}
-
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -46,32 +43,22 @@ jobs:
       with:
         node-version: ${{ matrix.nodejs_version }}
 
-    - name: Cache Node Modules
-      uses: actions/cache@v3
+    - name: Composit Action - Cache & Install NPM Packages
+      uses: ./.github/custom-actions/npm-action
       with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+        path-of-folder: 'node_modules'
 
-    - name: Install Dependencies
-      run: npm install
-
-    - name: Run Unit Tests
-      run: npm test | tee test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml
-
-    - name: Ensure Test Results Directory Exists
-      run: mkdir -p test-results
-
-    - name: Move Test Results
-      run: mv test-results-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}.xml test-results/
+    - name: Unit Testsing
+      id: nodejs-unit-testing-step
+      run: npm test
 
     - name: Archive Test Results
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: Mocha-Test-Result-${{ matrix.nodejs_version }}-${{ matrix.operating_system }}-${{ github.run_id }}
-        path: test-results/
-        if-no-files-found: ignore
+        name: Mocha-Test-Result
+        path: test-results.xml
+        retention-days: 1
 
   code-coverage:
     name: Code Coverage
@@ -96,31 +83,20 @@ jobs:
     #   with:
     #     node-version: 18
 
-    - name: Cache Node Modules
-      uses: actions/cache@v3
+    - name: Composit Action - Cache & Install NPM Packages
+      uses: ./.github/custom-actions/npm-action
       with:
-        path: node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+        path-of-folder: 'node_modules'
 
-    - name: Install Dependencies
-      run: npm install
+    - name: Check Code Coverage
+      continue-on-error: true
+      run: npm run coverage
 
-    - name: Run Code Coverage
-      run: npm run coverage | tee coverage-results.xml
-
-    - name: Ensure Coverage Results Directory Exists
-      run: mkdir -p coverage-results
-
-    - name: Move Coverage Results
-      run: mv coverage-results.xml coverage-results/
-
-    - name: Archive Coverage Results
+    - name: Archive Test Results
       uses: actions/upload-artifact@v4
       with:
-        name: Code-Coverage-Result-${{ github.run_id }}
-        path: coverage-results/
+        name: Code-Coverage-Result
+        path: coverage
         retention-days: 1
 #reporting to s3
   reports-s3:
@@ -284,6 +260,3 @@ jobs:
         SLACK_ICON: https://gitlab.com/sidd-harth/solar-system/-/raw/main/images/saturn.png
         SLACK_MESSAGE: ':hammer_and_wrench: Triggered by ${{github.actor}}'
         SLACK_TITLE: Information
-
-
-        
