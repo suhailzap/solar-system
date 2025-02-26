@@ -61,7 +61,7 @@ jobs:
         with:
           tokenPrefix: '_{_'
           tokenSuffix: '_}_'
-          files: '["${{ inputs.k8s-manifests-directory }}*.yaml"]'
+          files: '["${{ inputs.k8s-manifests-directory }}/*.yaml"]'
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
           REPLICAS: ${{ vars.REPLICAS }}
@@ -70,7 +70,7 @@ jobs:
 
       - name: Check files
         run: |
-          cat ${{ inputs.k8s-manifests-directory }}*.yaml
+          cat ${{ inputs.k8s-manifests-directory }}/*.yaml
 
       - name: Create MongoDB Secret
         run: |
