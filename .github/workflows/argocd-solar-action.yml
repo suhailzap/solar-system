@@ -210,6 +210,18 @@ jobs:
         run: |
           sed -i 's|image: .*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|' kubernetes/production/deployment.yaml
 
+      - name: Check Current Directory
+        run: pwd
+
+      - name: Check Git Status
+        run: git status
+
+
+      - name: List Directory Contents
+        run: ls -R
+
+        
+
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions"
