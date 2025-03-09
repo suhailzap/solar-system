@@ -5,7 +5,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
     kubernetes.io/tls-acme: "true"
   name: solar-system
-  namespace: _{_NAMESPACE_}_
+  namespace: solar-system-production
 spec:
     rules:
     - host: solar-system._{_INGRESS_IP_}_.nip.io

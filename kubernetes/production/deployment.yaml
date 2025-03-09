@@ -4,9 +4,9 @@ metadata:
   labels:
     app: solar-system
   name: solar-system
-  namespace: _{_NAMESPACE_}_
+  namespace: solar-system-production
 spec:
-  replicas: _{_REPLICAS_}_
+  replicas: 1
   selector:
     matchLabels:
       app: solar-system
