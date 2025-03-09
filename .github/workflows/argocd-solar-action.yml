@@ -152,3 +152,6 @@ jobs:
   #       run: |
   #         argocd app sync solar-system-prod --revision ${{ github.sha }}
   #         argocd app wait solar-system-prod --health --timeout 300
+
+
+  
