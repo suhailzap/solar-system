@@ -204,11 +204,11 @@ jobs:
 
       - name: Update Image in Development Deployment
         run: |
-          sed -i 's|image: .*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|' solar-system/kubernetes/development/deployment.yaml
+          sed -i 's|image: .*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|' kubernetes/development/deployment.yaml
 
       - name: Update Image in Production Deployment
         run: |
-          sed -i 's|image: .*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|' solar-system/kubernetes/production/deployment.yaml
+          sed -i 's|image: .*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|' kubernetes/production/deployment.yaml
 
       - name: Commit and Push Changes
         run: |
