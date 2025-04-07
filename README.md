@@ -55,4 +55,12 @@ If the installation was successful, you should be able to run the following comm
 ![image](https://github.com/user-attachments/assets/ff9e0cfd-c371-4593-9133-4c9c44b418bf)
 
 
+![prod-deploy](https://github.com/user-attachments/assets/1c011f53-525c-43e2-97ab-745838698add)
+
+
+
+![prod-deploy](https://github.com/user-attachments/assets/95dc569a-c6da-44d3-9d29-22a8f83321f3)
+
+
+
 
