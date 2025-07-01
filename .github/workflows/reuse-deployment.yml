@@ -31,7 +31,7 @@ jobs:
       url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     outputs:
       APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
-    runs-on: [self-hosted, linux, prod]  #Use your self-hosted runner instead of ubuntu-latest if using k3s
+    runs-on: [self-hosted, linux, X64]  #Use your self-hosted runner instead of ubuntu-latest if using k3s
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
