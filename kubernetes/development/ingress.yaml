@@ -1,24 +1,25 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: solar-system
+  namespace: _{_NAMESPACE_}_
   annotations:
     kubernetes.io/ingress.class: traefik
     kubernetes.io/tls-acme: "true"
-  name: solar-system
-  namespace: _{_NAMESPACE_}_
+    traefik.ingress.kubernetes.io/service.serversscheme: "http"
 spec:
-    rules:
-    - host: solar-system-_{_NAMESPACE_}_._{_INGRESS_IP_}_.nip.io
+  rules:
+    - host: solar-system._{_INGRESS_IP_}_.nip.io
       http:
         paths:
-        - backend:
-            service:
-              name: solar-system
-              port:
-                number: 3000
-          path: /
-          pathType: Prefix
-    tls:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: solar-system
+                port:
+                  number: 3000
+  tls:
     - hosts:
-      - solar-system-_{_NAMESPACE_}_._{_INGRESS_IP_}_.nip.io
+        - solar-system._{_INGRESS_IP_}_.nip.io
       secretName: ingress-local-tls
