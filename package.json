@@ -25,8 +25,8 @@
     "chai": "*",
     "chai-http": "*",
     "mocha": "*",
-    "@stryker-mutator/core",
-    "@stryker-mutator/mocha-runner",
-    "@stryker-mutator/html-reporter"
+    "@stryker-mutator/core": "*",
+    "@stryker-mutator/mocha-runner": "*",
+    "@stryker-mutator/html-reporter": "*"
   }
 }
