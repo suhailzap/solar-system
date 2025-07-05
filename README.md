@@ -18,27 +18,27 @@ The sample application is a beautiful **Solar System UI** built with pure HTML/C
 A responsive and visually stunning solar system animation.
 
 > **➡️ View Live Demo ⬅️**
-> *(Add your live demo URL here)*
 
-![Solar System Web UI](./docs/images/solar-system-ui.gif)
-*_**Note:** You need to add this image to a folder like `docs/images/` in your repo._*
+![Solar System Web UI](./docs/images/solar-system-ui.png)
+
 
 
 ### 🤖 The Automated CI/CD Pipeline
 
 A dynamic, multi-stage workflow graph showing the entire process from code to deployment.
 
-![GitHub Actions Workflow Graph](./docs/images/pipeline-graph.png)
+![GitHub Actions Workflow Graph](./docs/images/pipeline-graph-main.png)
 
 
-*_*Note:* Take a screenshot of your GitHub Actions run and add it here._*
+![GitHub Actions Workflow Graph](./docs/images/pipeline-graph-feature-branch.png)
+
 
 ### 🔔 Real-Time Slack Notifications
 
 Get instant feedback on your deployment status directly in your Slack workspace.
 
 ![Slack Notification Example](./docs/images/slack-notification.png)
-*_*Note:* Take a screenshot of a Slack notification and add it here._*
+
 
 ---
 
