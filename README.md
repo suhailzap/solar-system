@@ -19,10 +19,7 @@ A responsive and visually stunning solar system animation.
 
 > **➡️ View Live Demo ⬅️**
 
-![Solar System Web UI](./docs/images/solar-system-ui.gif)
-
-![Solar System Web UI](./docs/images/solar-system-ui.png)
-
+![Solar System Web UI](./docs/images/solar-system-ui3.gif)
 
 
 ### 🤖 The Automated CI/CD Pipeline
