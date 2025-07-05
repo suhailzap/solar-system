@@ -1,0 +1,149 @@
+name: Solar System DevSecOps Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'feature/*'
+
+env:
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+  NODE_OPTIONS: --no-deprecation
+
+jobs:
+  unit-testing:
+    name: Unit Testing
+    services:
+      mongo-db:
+        image: siddharth67/mongo-db:non-prod
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URI: 'mongodb://localhost:27017/superData'
+      MONGO_USERNAME: non-prod-user
+      MONGO_PASSWORD: non-prod-password
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm ci
+      - run: npm test
+
+  mutation-testing:
+    needs: unit-testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install
+      - run: npx stryker run
+
+  sonar-scan:
+    needs: unit-testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@v2.1.0
+        with:
+          args: >
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+  docker:
+    needs: [unit-testing, mutation-testing, sonar-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
+
+  trivy-docker-scan:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trivy Scan Docker Image
+        uses: aquasecurity/trivy-action@0.11.2
+        with:
+          image-ref: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+  conftest-k8s-scan:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Conftest
+        run: |
+          wget https://github.com/open-policy-agent/conftest/releases/download/v0.34.0/conftest_0.34.0_Linux_x86_64.tar.gz
+          tar xzf conftest_0.34.0_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/
+      - run: conftest test kubernetes/development/*.yaml
+      - run: conftest test kubernetes/production/*.yaml
+
+  trivy-k8s-scan:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aquasecurity/trivy-action@0.11.2
+        with:
+          scan-type: config
+          scan-ref: kubernetes/
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+  prod-deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: [docker, trivy-docker-scan, conftest-k8s-scan, trivy-k8s-scan]
+    uses: ./.github/workflows/reuse-deployment.yml
+    secrets:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+    with:
+      MONGO_URI: ${{ vars.MONGO_URI }}
+      environment: production
+      k8s-manifests-directory: kubernetes/production
+
+  zap-dast:
+    needs: prod-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: 'https://${{ needs.prod-deploy.outputs.APP_INGRESS_URL }}/'
+
+  cis-benchmark:
+    needs: prod-deploy
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - name: K8s CIS Benchmark
+        run: |
+          docker run --rm --pid=host aquasec/kube-bench:latest --version 1.23
+
+  slack-notification:
+    if: always()
+    needs: [prod-deploy, zap-dast, cis-benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: github-actions-channel
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: ':lock: DevSecOps pipeline completed by ${{ github.actor }}'
