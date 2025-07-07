@@ -192,7 +192,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
 
   dev-deploy:
-    if: contains(github.ref, 'feature/')
+    if: contains(github.ref, 'suhailzap-patch-1')
     needs: docker
     uses: ./.github/workflows/reuse-deployment.yml
     secrets:
@@ -207,7 +207,7 @@ jobs:
       git-revision: ${{ github.ref_name }}
      
   dev-integration-testing:
-    if: contains(github.ref, 'feature/')
+    if: contains(github.ref, 'suhailzap-patch-1')
     name: Dev Integration Testing
     needs: dev-deploy
     runs-on: [self-hosted, linux, prod] 
