@@ -50,19 +50,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install ArgoCD CLI
-      - name: Install ArgoCD CLI
-        run: |
-          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-          rm argocd-linux-amd64
+      # # Install ArgoCD CLI
+      # - name: Install ArgoCD CLI
+      #   run: |
+      #     curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+      #     sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+      #     rm argocd-linux-amd64
 
       # Login to ArgoCD
       - name: Login to ArgoCD
         run: |
           argocd login ${{ vars.ARGOCD_SERVER }} \
-            --username ${{ vars.ARGOCD_USERNAME }} \
-            --password ${{ secrets.ARGOCD_TOKEN }} \
+            --username admin \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
             --insecure
 
       # Create MongoDB Secret (if not using external secrets)
