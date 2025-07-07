@@ -54,35 +54,74 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install ArgoCD CLI
+      # Install ArgoCD CLI (uncomment if needed)
       # - name: Install ArgoCD CLI
       #   run: |
       #     curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
       #     sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
       #     rm argocd-linux-amd64
+      #     argocd version --client
 
-      # Login to ArgoCD
+      # Login to ArgoCD with error handling
       - name: Login to ArgoCD
         run: |
-          argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+          if ! argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username admin \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure; then
+            echo "::error::Failed to login to ArgoCD"
+            exit 1
+          fi
+          echo "Successfully logged in to ArgoCD"
 
-      # Create MongoDB Secret (if not using external secrets)
+      # Create namespace if it doesn't exist
+      - name: Ensure Namespace Exists
+        run: |
+          kubectl create namespace ${{ vars.NAMESPACE }} || true
+          kubectl get namespace ${{ vars.NAMESPACE }}
+
+      # Create MongoDB Secret with better error handling
       - name: Create MongoDB Secret
         run: |
-          kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
+          if ! kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
             --from-literal=MONGO_URI=${{ inputs.MONGO_URI }} \
             --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
             --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-            --save-config \
-            --dry-run=client \
-            -o yaml | kubectl apply -f -
+            --dry-run=client -o yaml | kubectl apply -f -; then
+            echo "::error::Failed to create MongoDB secret"
+            exit 1
+          fi
 
-      # Create or sync ArgoCD Application
+      # Get Ingress IP for hostname construction
+      - name: Get Ingress IP
+        id: get-ingress-ip
+        run: |
+          INGRESS_IP=$(kubectl get service traefik -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          if [ -z "$INGRESS_IP" ]; then
+            echo "::error::Could not determine Ingress IP"
+            exit 1
+          fi
+          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+
+      # Process manifests to replace tokens
+      - name: Process Kubernetes Manifests
+        run: |
+          # Replace tokens in all YAML files
+          find ${{ inputs.k8s-manifests-directory }} -name '*.yaml' -exec sed -i \
+            -e "s/_{_NAMESPACE_}_/${{ vars.NAMESPACE }}/g" \
+            -e "s/_{_REPLICAS_}_/${{ vars.REPLICAS }}/g" \
+            -e "s/_{_IMAGE_}_/${{ vars.DOCKERHUB_USERNAME }}\/solar-system:${{ github.sha }}/g" \
+            -e "s/_{_INGRESS_IP_}_/${{ env.INGRESS_IP }}/g" \
+            {} \;
+
+      # Deploy using ArgoCD with comprehensive error handling
       - name: Deploy using ArgoCD
         run: |
-          # Check if application exists
-          if ! argocd app get ${{ inputs.argocd-app-name }}; then
-            # Create new application
+          set -e  # Exit immediately on error
+
+          # Create or update application
+          if ! argocd app get ${{ inputs.argocd-app-name }} >/dev/null 2>&1; then
+            echo "Creating new ArgoCD application"
             argocd app create ${{ inputs.argocd-app-name }} \
               --repo ${{ inputs.git-repo-url }} \
               --path ${{ inputs.k8s-manifests-directory }} \
@@ -91,25 +130,40 @@ jobs:
               --revision ${{ inputs.git-revision }} \
               --sync-policy automated \
               --auto-prune \
-              --self-heal
+              --self-heal \
+              --upsert
           else
-            # Update existing application
+            echo "Updating existing ArgoCD application"
             argocd app set ${{ inputs.argocd-app-name }} \
               --repo ${{ inputs.git-repo-url }} \
               --path ${{ inputs.k8s-manifests-directory }} \
-              --revision ${{ inputs.git-revision }}
-            
-            # Sync the application
-            argocd app sync ${{ inputs.argocd-app-name }} \
-              --prune \
-              --force
+              --revision ${{ inputs.git-revision }} \
+              --dest-namespace ${{ vars.NAMESPACE }}
           fi
 
-          # Wait for synchronization
-          argocd app wait ${{ inputs.argocd-app-name }} --health
+          # Sync with retries
+          for i in {1..3}; do
+            if argocd app sync ${{ inputs.argocd-app-name }} --prune --force; then
+              break
+            fi
+            sleep 5
+          done
 
+          # Wait for synchronization with timeout
+          timeout 300 argocd app wait ${{ inputs.argocd-app-name }} --health || {
+            echo "::warning::Application synchronization timed out or failed"
+            argocd app get ${{ inputs.argocd-app-name }}
+            exit 1
+          }
+
+      # Get Ingress URL with error handling
       - name: Set App Ingress Host URL
         id: set-ingress-host-address
         run: |
-          APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')
+          sleep 10  # Wait for ingress to be ready
+          if ! APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}'); then
+            echo "::warning::Could not retrieve Ingress host"
+            APP_INGRESS_HOST="not-available"
+          fi
           echo "APP_INGRESS_HOST=$APP_INGRESS_HOST" >> $GITHUB_OUTPUT
+          echo "Ingress URL: https://$APP_INGRESS_HOST"
