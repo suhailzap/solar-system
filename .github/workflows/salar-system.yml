@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
-      - 'feature/*'
+      - 'suhailzap-patch-1'
 
 env:
     MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
