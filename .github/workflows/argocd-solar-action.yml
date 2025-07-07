@@ -132,26 +132,26 @@ jobs:
           git commit -m "Update deployment image to ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}"
           git push origin ${{ github.ref_name }}
 
-  # deploy-argocd:
-  #   name: Deploy via ArgoCD
-  #   needs: update-manifests
-  #   runs-on: [self-hosted, linux, prod]
-  #   steps:
-  #     - name: Login to ArgoCD
-  #       run: |
-  #         argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+  deploy-argocd:
+    name: Deploy via ArgoCD
+    needs: update-manifests
+    runs-on: [self-hosted, linux, prod]
+    steps:
+      - name: Login to ArgoCD
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
 
-  #     - name: Sync Development Environment
-  #       if: contains(github.ref, 'feature/')
-  #       run: |
-  #         argocd app sync solar-system-dev --revision ${{ github.sha }}
-  #         argocd app wait solar-system-dev --health --timeout 300
+      - name: Sync Development Environment
+        if: contains(github.ref, 'feature/')
+        run: |
+          argocd app sync solar-system-dev --revision ${{ github.sha }}
+          argocd app wait solar-system-dev --health --timeout 300
 
-  #     - name: Sync Production Environment
-  #       if: github.ref == 'refs/heads/main'
-  #       run: |
-  #         argocd app sync solar-system-prod --revision ${{ github.sha }}
-  #         argocd app wait solar-system-prod --health --timeout 300
+      - name: Sync Production Environment
+        if: github.ref == 'refs/heads/main'
+        run: |
+          argocd app sync solar-system-prod --revision ${{ github.sha }}
+          argocd app wait solar-system-prod --health --timeout 300
 
 
   
