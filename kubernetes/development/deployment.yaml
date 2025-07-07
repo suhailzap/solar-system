@@ -6,7 +6,7 @@ metadata:
   name: solar-system
   namespace: development  # Replace with concrete value or ensure proper replacement
 spec:
-  replicas: 2  # Must be a number without quotes
+  replicas: 1  # Must be a number without quotes
   selector:
     matchLabels:
       app: solar-system
