@@ -3,22 +3,21 @@ kind: Ingress
 metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
-    kubernetes.io/tls-acme: "true"
   name: solar-system
-  namespace: _{_NAMESPACE_}_
+  namespace: development
 spec:
-    rules:
-    - host: solar-system-_{_NAMESPACE_}_._{_INGRESS_IP_}_.nip.io
-      http:
-        paths:
-        - backend:
-            service:
-              name: solar-system
-              port:
-                number: 3000
-          path: /
-          pathType: Prefix
+  rules:
+  - host: solar-system-development.${INGRESS_IP}.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: solar-system
+            port:
+              number: 3000
     tls:
     - hosts:
-      - solar-system-_{_NAMESPACE_}_._{_INGRESS_IP_}_.nip.io
+      - solar-system-development.${INGRESS_IP}.nip.io
       secretName: ingress-local-tls
