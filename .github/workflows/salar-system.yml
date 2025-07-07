@@ -197,6 +197,8 @@ jobs:
     uses: ./.github/workflows/reuse-deployment.yml
     secrets:
       ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+      ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
       MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
     with:
       MONGO_URI: ${{ vars.MONGO_URI }}
@@ -226,6 +228,8 @@ jobs:
     uses: ./.github/workflows/reuse-deployment.yml
     secrets:
       ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+      ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
       MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
     with:
       MONGO_URI: ${{ vars.MONGO_URI }}
