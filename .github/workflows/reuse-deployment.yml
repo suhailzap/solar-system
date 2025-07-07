@@ -1,4 +1,4 @@
-name: Deployment - Reusable Workflow
+name: Deployment - Reusable Workflow with ArgoCD
 
 on:
   workflow_call:
@@ -16,14 +16,28 @@ on:
         default: development
         required: true
         type: string
+      argocd-app-name:
+        description: Name of the ArgoCD Application resource
+        required: true
+        type: string
+      git-repo-url:
+        description: URL of the Git repository containing manifests
+        required: true
+        type: string
+      git-revision:
+        description: Git revision (branch/tag/commit) to deploy
+        default: main
+        required: true
+        type: string
     secrets:
-      KUBE_CONFIG:
+      ARGOCD_TOKEN:
         required: true
       MONGO_PASSWORD:
         required: true
     outputs:
-        APP_INGRESS_URL:
-            value: ${{ jobs.reuse-deploy.outputs.APP_INGRESS_URL }}
+      APP_INGRESS_URL:
+        value: ${{ jobs.reuse-deploy.outputs.APP_INGRESS_URL }}
+
 jobs:
   reuse-deploy:
     environment:
@@ -31,49 +45,27 @@ jobs:
       url: https://${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     outputs:
       APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
-    runs-on: [self-hosted, linux, prod] # Use your self-hosted runner instead of ubuntu-latest if using k3s
+    runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Create .kube directory (if not exists)
-        run: mkdir -p $HOME/.kube
-
-      - name: Set Kubeconfig from Secret
-        run: echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
-
-      - name: Fetch K8s Cluster Details
+      # Install ArgoCD CLI
+      - name: Install ArgoCD CLI
         run: |
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl version
-          echo "--------------------------------------"
-          kubectl get nodes
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
 
-      - name: Create development namespace if not exists
-        run: kubectl create namespace ${{ vars.NAMESPACE }} || true
-
-      - name: Set Ingress IP as Environment Variable
+      # Login to ArgoCD
+      - name: Login to ArgoCD
         run: |
-          export INGRESS_IP=$(kubectl get service traefik -n kube-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo $INGRESS_IP
-          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+          argocd login ${{ vars.ARGOCD_SERVER }} \
+            --username ${{ vars.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_TOKEN }} \
+            --insecure
 
-      - name: Replace Tokens in Manifest Files
-        uses: cschleiden/replace-tokens@v1
-        with:
-          tokenPrefix: '_{_'
-          tokenSuffix: '_}_'
-          files: '["${{ inputs.k8s-manifests-directory }}/*.yaml"]'
-        env:
-          NAMESPACE: ${{ vars.NAMESPACE }}
-          REPLICAS: ${{ vars.REPLICAS }}
-          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-          INGRESS_IP: ${{ env.INGRESS_IP }}
-
-      - name: Check files
-        run: |
-          cat ${{ inputs.k8s-manifests-directory }}/*.yaml
-
+      # Create MongoDB Secret (if not using external secrets)
       - name: Create MongoDB Secret
         run: |
           kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
@@ -84,9 +76,36 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
-      - name: Deploy to the Environment
+      # Create or sync ArgoCD Application
+      - name: Deploy using ArgoCD
         run: |
-          kubectl apply -f ${{ inputs.k8s-manifests-directory }}
+          # Check if application exists
+          if ! argocd app get ${{ inputs.argocd-app-name }}; then
+            # Create new application
+            argocd app create ${{ inputs.argocd-app-name }} \
+              --repo ${{ inputs.git-repo-url }} \
+              --path ${{ inputs.k8s-manifests-directory }} \
+              --dest-server https://kubernetes.default.svc \
+              --dest-namespace ${{ vars.NAMESPACE }} \
+              --revision ${{ inputs.git-revision }} \
+              --sync-policy automated \
+              --auto-prune \
+              --self-heal
+          else
+            # Update existing application
+            argocd app set ${{ inputs.argocd-app-name }} \
+              --repo ${{ inputs.git-repo-url }} \
+              --path ${{ inputs.k8s-manifests-directory }} \
+              --revision ${{ inputs.git-revision }}
+            
+            # Sync the application
+            argocd app sync ${{ inputs.argocd-app-name }} \
+              --prune \
+              --force
+          fi
+
+          # Wait for synchronization
+          argocd app wait ${{ inputs.argocd-app-name }} --health
 
       - name: Set App Ingress Host URL
         id: set-ingress-host-address
