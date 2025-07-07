@@ -4,20 +4,19 @@ metadata:
   labels:
     app: solar-system
   name: solar-system
-  namespace: _{_NAMESPACE_}_
+  namespace: development  # Replace with concrete value or ensure proper replacement
 spec:
-  replicas: _{_REPLICAS_}_
+  replicas: 2  # Must be a number without quotes
   selector:
     matchLabels:
       app: solar-system
-  strategy: {}
   template:
     metadata:
       labels:
         app: solar-system
     spec:
       containers:
-      - image: _{_IMAGE_}_
+      - image: suhailsap06/solar-system:${GIT_SHA}  # Will be replaced in workflow
         imagePullPolicy: Always
         name: solar-system
         ports:
