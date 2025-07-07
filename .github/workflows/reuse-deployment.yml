@@ -32,6 +32,10 @@ on:
     secrets:
       ARGOCD_TOKEN:
         required: true
+      ARGOCD_SERVER:
+        required: true
+      ARGOCD_PASSWORD:
+        required: true
       MONGO_PASSWORD:
         required: true
     outputs:
