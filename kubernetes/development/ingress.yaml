@@ -17,7 +17,3 @@ spec:
             name: solar-system
             port:
               number: 3000
-    tls:
-    - hosts:
-      - solar-system-development.${INGRESS_IP}.nip.io
-      secretName: ingress-local-tls
