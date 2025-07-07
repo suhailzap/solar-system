@@ -135,7 +135,7 @@ jobs:
   deploy-argocd:
     name: Deploy via ArgoCD
     needs: update-manifests
-    runs-on: [self-hosted, linux, prod]
+    runs-on: [self-hosted, linux, X64]
     steps:
       - name: Login to ArgoCD
         run: |
