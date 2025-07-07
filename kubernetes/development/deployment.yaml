@@ -16,7 +16,7 @@ spec:
         app: solar-system
     spec:
       containers:
-      - image: suhailsap06/solar-system:${GIT_SHA}  # Will be replaced in workflow
+      - image: _{_IMAGE_}_  # Will be replaced in workflow
         imagePullPolicy: Always
         name: solar-system
         ports:
