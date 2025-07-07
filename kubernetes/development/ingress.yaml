@@ -7,7 +7,7 @@ metadata:
   namespace: development
 spec:
   rules:
-  - host: solar-system-development.${INGRESS_IP}.nip.io
+  - host: solar-system-development._{_INGRESS_IP_}.nip.io 
     http:
       paths:
       - path: /
