@@ -4,9 +4,9 @@ metadata:
   labels:
     app: solar-system
   name: solar-system
-  namespace: development  # Replace with concrete value or ensure proper replacement
+  namespace: development 
 spec:
-  replicas: 1  # Must be a number without quotes
+  replicas: 1 
   selector:
     matchLabels:
       app: solar-system
