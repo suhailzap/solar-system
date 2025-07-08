@@ -1,0 +1,154 @@
+name: Solar System Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'suhailzap-patch-1'
+
+env:
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+  NODE_OPTIONS: --no-deprecation
+
+jobs:
+  unit-testing:
+    name: Unit Testing
+    services:
+      mongo-db:
+        image: siddharth67/mongo-db:non-prod
+        ports:
+          - 27017:27017
+        options: --name mongo
+    env:
+      MONGO_URI: 'mongodb://localhost:27017/superData'
+      MONGO_USERNAME: non-prod-user
+      MONGO_PASSWORD: non-prod-password
+      NODE_OPTIONS: --no-deprecation
+    strategy:
+      matrix:
+        nodejs_version: [18, 20]
+        operating_system: [ubuntu-latest]
+    runs-on: ${{ matrix.operating_system }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.nodejs_version }}
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+  code-coverage:
+    name: Code Coverage
+    container:
+      image: node:18
+    services:
+      mongo-db:
+        image: siddharth67/mongo-db:non-prod
+        options: --name mongo
+    env:
+      MONGO_URI: 'mongodb://mongo:27017/superData'
+      MONGO_USERNAME: non-prod-user
+      MONGO_PASSWORD: non-prod-password
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Coverage
+        run: npm run coverage
+
+  docker:
+    name: Docker Build & Push
+    needs: [unit-testing, code-coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: DockerHub Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build & Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+
+      - name: Patch K8s Manifest with Image Tag
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/suhailzap-patch-1" ]]; then
+            FILE=kubernetes/production/deployment.yaml
+          else
+            FILE=kubernetes/development/deployment.yaml
+          fi
+
+          echo "Patching image in $FILE"
+          sed -i "s|image: .*solar-system:.*|image: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|" "$FILE"
+
+      - name: Commit and Push Updated Manifest
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add kubernetes/**/*.yaml
+          git commit -m "chore: update image tag to ${{ github.sha }}" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref }}
+
+  dev-integration-testing:
+    if: contains(github.ref, 'feature/')
+    name: Dev Integration Testing
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - name: Wait for ArgoCD to sync (optional)
+        run: sleep 60  # adjust or use ArgoCD CLI to wait
+
+      - name: Test Live URL
+        run: |
+          URL="solar-system-dev.example.com" # replace with your dev ingress
+          curl -s -k https://$URL/live | jq -r .status | grep -i live
+
+  prod-integration-testing:
+    if: github.ref == 'refs/heads/main'
+    name: Prod Integration Testing
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - name: Wait for ArgoCD to sync (optional)
+        run: sleep 60  # adjust or use ArgoCD CLI to wait
+
+      - name: Test Live URL
+        run: |
+          URL="solar-system.example.com" # replace with your prod ingress
+          curl -s -k https://$URL/live | jq -r .status | grep -i live
+
+  slack-notification:
+    if: always()
+    name: Slack Notification
+    needs: [dev-integration-testing, prod-integration-testing]
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: github-actions-channel
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://gitlab.com/sidd-harth/solar-system/-/raw/main/images/saturn.png
+          SLACK_MESSAGE: ':rocket: ArgoCD-based deployment triggered by ${{ github.actor }}'
+          SLACK_TITLE: Solar System Deployment
