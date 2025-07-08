@@ -7,25 +7,20 @@ on:
         required: true
         type: string
       k8s-manifests-directory:
-        description: provide the directory where k8s manifests are stored
         default: kubernetes/
         required: true
         type: string
       environment:
-        description: provide the Deployment Environment name
         default: development
         required: true
         type: string
       argocd-app-name:
-        description: Name of the ArgoCD Application resource
         required: true
         type: string
       git-repo-url:
-        description: URL of the Git repository containing manifests
         required: true
         type: string
       git-revision:
-        description: Git revision (branch/tag/commit) to deploy
         default: main
         required: true
         type: string
@@ -45,93 +40,63 @@ on:
 jobs:
   reuse-deploy:
     runs-on: [self-hosted, linux, X64]
+    outputs:
+      APP_INGRESS_URL: ${{ steps.set-ingress-host-address.outputs.APP_INGRESS_HOST }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
-      # Install ArgoCD CLI
-      # - name: Install ArgoCD CLI
-      #   run: |
-      #     curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-      #     sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-      #     rm argocd-linux-amd64
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      # Login to ArgoCD
-      - name: Login to ArgoCD
-        run: |
-          argocd login ${{ secrets.ARGOCD_SERVER }} \
-            --username admin \
-            --password ${{ secrets.ARGOCD_PASSWORD }} \
-            --insecure
+    # Set up Git identity
+    - name: Setup Git Identity
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
 
-      # Create namespace if needed
-      - name: Create Namespace
-        run: kubectl create namespace ${{ vars.NAMESPACE }} || true
+    # Get Ingress IP (optional)
+    - name: Get Ingress IP
+      id: ingress-ip
+      run: |
+        INGRESS_IP=$(kubectl get svc traefik -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
 
-      # Create MongoDB Secret
-      - name: Create MongoDB Secret
-        run: |
-          kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-            --from-literal=MONGO_URI=${{ inputs.MONGO_URI }} \
-            --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
-            --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-            --dry-run=client -o yaml | kubectl apply -f -
+    # Replace placeholders in manifests
+    - name: Update Kubernetes Manifests with New Image Tag
+      run: |
+        find ${{ inputs.k8s-manifests-directory }} -name '*.yaml' -exec sed -i \
+          -e "s|_{_NAMESPACE_}_|${{ inputs.environment }}|g" \
+          -e "s|_{_IMAGE_}_|${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}|g" \
+          -e "s|_{_INGRESS_IP_}_|${{ env.INGRESS_IP }}|g" \
+          -e "s|\${GIT_SHA}|${{ github.sha }}|g" \
+          {} \;
 
-      # Get Ingress IP
-      - name: Get Ingress IP
-        id: ingress-ip
-        run: |
-          INGRESS_IP=$(kubectl get service traefik -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+        echo "Modified manifests:"
+        cat ${{ inputs.k8s-manifests-directory }}/*.yaml
 
-      # Process manifests to replace ALL placeholders including GIT_SHA
-      - name: Process Kubernetes Manifests
-        run: |
-          # Replace all placeholders in YAML files
-          find ${{ inputs.k8s-manifests-directory }} -name '*.yaml' -exec sed -i \
-            -e "s/_{_NAMESPACE_}_/${{ vars.NAMESPACE }}/g" \
-            -e "s/_{_REPLICAS_}_/${{ vars.REPLICAS }}/g" \
-            -e "s/_{_IMAGE_}_/${{ vars.DOCKERHUB_USERNAME }}\/solar-system:${{ github.sha }}/g" \
-            -e "s/_{_INGRESS_IP_}_/${{ env.INGRESS_IP }}/g" \
-            -e "s/\${GIT_SHA}/${{ github.sha }}/g" \
-            {} \;
+    # Commit & Push the modified manifests
+    - name: Commit and Push Manifest Changes
+      run: |
+        git add ${{ inputs.k8s-manifests-directory }}
+        git commit -m "ci: update image tag to ${{ github.sha }}" || echo "No changes to commit"
+        git push origin HEAD:${{ inputs.git-revision }}
 
-          # Verify replacements
-          echo "Processed manifests:"
-          cat ${{ inputs.k8s-manifests-directory }}/*.yaml
+    # # Optional: Trigger ArgoCD sync manually (if auto-sync is disabled)
+    # - name: Sync ArgoCD Application
+    #   run: |
+    #     argocd login ${{ secrets.ARGOCD_SERVER }} \
+    #       --username admin \
+    #       --password ${{ secrets.ARGOCD_PASSWORD }} \
+    #       --insecure
 
-      # Deploy using ArgoCD
-      - name: Deploy using ArgoCD
-        run: |
-          # Create or update application
-          if ! argocd app get ${{ inputs.argocd-app-name }} >/dev/null 2>&1; then
-            argocd app create ${{ inputs.argocd-app-name }} \
-              --repo ${{ inputs.git-repo-url }} \
-              --path ${{ inputs.k8s-manifests-directory }} \
-              --dest-server https://kubernetes.default.svc \
-              --dest-namespace ${{ vars.NAMESPACE }} \
-              --revision ${{ inputs.git-revision }} \
-              --sync-policy automated \
-              --auto-prune \
-              --self-heal \
-              --upsert
-          else
-            argocd app set ${{ inputs.argocd-app-name }} \
-              --repo ${{ inputs.git-repo-url }} \
-              --path ${{ inputs.k8s-manifests-directory }} \
-              --revision ${{ inputs.git-revision }}
-            
-            argocd app sync ${{ inputs.argocd-app-name }} --prune --force
-          fi
+    #     argocd app sync ${{ inputs.argocd-app-name }} --prune --force
+    #     argocd app wait ${{ inputs.argocd-app-name }} --health || true
+    #     argocd app get ${{ inputs.argocd-app-name }}
 
-          # Wait for sync
-          timeout 300 argocd app wait ${{ inputs.argocd-app-name }} --health || true
-          argocd app get ${{ inputs.argocd-app-name }}
-
-      - name: Set App Ingress Host URL
-        id: set-ingress-host-address
-        run: |
-          sleep 10  # Wait for ingress to be ready
-          APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')
-          echo "APP_INGRESS_HOST=$APP_INGRESS_HOST" >> $GITHUB_OUTPUT
-          echo "Ingress URL: https://$APP_INGRESS_HOST"
+    # Output the ingress hostname
+    - name: Set App Ingress Host URL
+      id: set-ingress-host-address
+      run: |
+        sleep 10
+        APP_INGRESS_HOST=$(kubectl -n ${{ inputs.environment }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')
+        echo "APP_INGRESS_HOST=$APP_INGRESS_HOST" >> $GITHUB_OUTPUT
+        echo "Ingress URL: https://$APP_INGRESS_HOST"
