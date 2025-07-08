@@ -16,7 +16,7 @@ spec:
         app: solar-system
     spec:
       containers:
-      - image: suhailsap06/solar-system:75e053cd6d41be9ec18db79605476a7e8f4e66e9 # Will be replaced in workflow
+      - image: suhailsap06/solar-system:df935dbe7dec99e4a4964aa8a44d13e9a081df3c
         imagePullPolicy: Always
         name: solar-system
         ports:
